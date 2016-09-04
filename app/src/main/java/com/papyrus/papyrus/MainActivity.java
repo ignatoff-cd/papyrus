@@ -2,10 +2,12 @@ package com.papyrus.papyrus;
 
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -82,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
                         //save drawing
                         drawView.setDrawingCacheEnabled(true);
                         //attempt to save
+
                         String imgSaved = MediaStore.Images.Media.insertImage(
                                 MainActivity.this.getContentResolver(), drawView.getDrawingCache(),
                                 UUID.randomUUID().toString() + ".png", "drawing");
@@ -91,6 +94,9 @@ public class MainActivity extends AppCompatActivity {
                                     "Drawing saved to Gallery!", Toast.LENGTH_SHORT);
                             savedToast.show();
                         } else {
+                            String file_path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getAbsolutePath();
+
+
                             Toast unsavedToast = Toast.makeText(getApplicationContext(),
                                     "Oops! Image could not be saved.", Toast.LENGTH_SHORT);
                             unsavedToast.show();
