@@ -9,8 +9,14 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
+
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+
+import com.google.gson.Gson;
+
+import java.util.concurrent.BlockingQueue;
 
 public class DrawingView extends View {
     //drawing path
@@ -25,6 +31,8 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
 
     private boolean erase = false;
+    public BlockingQueue<byte[]> queue;
+    public long timeDiff = -1;
 
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -36,7 +44,7 @@ public class DrawingView extends View {
         drawPaint = new Paint();
         drawPaint.setColor(paintColor);
         drawPaint.setAntiAlias(true);
-        drawPaint.setStrokeWidth(20);
+        drawPaint.setStrokeWidth(15);
         drawPaint.setStyle(Paint.Style.STROKE);
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -61,23 +69,50 @@ public class DrawingView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 //detect user touch
-        float touchX = event.getX();
-        float touchY = event.getY();
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                drawPath.moveTo(touchX, touchY);
-                break;
-            case MotionEvent.ACTION_MOVE:
-                drawPath.lineTo(touchX, touchY);
-                break;
-            case MotionEvent.ACTION_UP:
-                drawCanvas.drawPath(drawPath, drawPaint);
-                drawPath.reset();
-                break;
-            default:
-                return false;
+        try {
+            DrawCommand command = new DrawCommand();
+            Log.i("DRAW", queue.toString());
+            String message = "";
+            String action = "";
+            float touchX = event.getX();
+            float touchY = event.getY();
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                case MotionEvent.ACTION_POINTER_DOWN:
+                    drawPath.moveTo(touchX, touchY);
+                    action = "moveTo";
+                    break;
+                case MotionEvent.ACTION_HOVER_MOVE:
+                case MotionEvent.ACTION_MOVE:
+                    drawPath.lineTo(touchX, touchY);
+                    action = "lineTo";
+                    break;
+                case MotionEvent.ACTION_POINTER_UP:
+                case MotionEvent.ACTION_CANCEL:
+                case MotionEvent.ACTION_UP:
+                    drawCanvas.drawPath(drawPath, drawPaint);
+                    action = "drawPath";
+                    drawPath.reset();
+                    break;
+                default:
+                    //message += "NOT SHOWN EVENT:" + event.getAction();
+                    return true;
+            }
+            if (action != "") {
+                command.setAction(action);
+                if (this.timeDiff == -1) {
+                    this.timeDiff = System.currentTimeMillis();
+                }
+                command.setNanoDiff(System.currentTimeMillis() - timeDiff);
+                command.setPointX(touchX);
+                command.setPointY(touchY);
+                Gson gson = new Gson();
+                message = gson.toJson(command);
+                queue.put(message.getBytes());
+            }
+            invalidate();
+        } catch (InterruptedException e) {
         }
-        invalidate();
         return true;
     }
 
@@ -96,5 +131,10 @@ public class DrawingView extends View {
         erase = isErase;
         if (erase) drawPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
         else drawPaint.setXfermode(null);
+    }
+
+
+    public void setQueue(BlockingQueue<byte[]> queue) {
+        this.queue = queue;
     }
 }
