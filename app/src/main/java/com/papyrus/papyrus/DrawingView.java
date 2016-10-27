@@ -73,32 +73,32 @@ public class DrawingView extends View {
             DrawCommand command = new DrawCommand();
             Log.i("DRAW", queue.toString());
             String message = "";
-            String action = "";
+            int action = 0;
             float touchX = event.getX();
             float touchY = event.getY();
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
                 case MotionEvent.ACTION_POINTER_DOWN:
                     drawPath.moveTo(touchX, touchY);
-                    action = "moveTo";
+                    action = DrawCommand.MOVE_TO;
                     break;
                 case MotionEvent.ACTION_HOVER_MOVE:
                 case MotionEvent.ACTION_MOVE:
                     drawPath.lineTo(touchX, touchY);
-                    action = "lineTo";
+                    action = DrawCommand.LINE_TO;
                     break;
                 case MotionEvent.ACTION_POINTER_UP:
                 case MotionEvent.ACTION_CANCEL:
                 case MotionEvent.ACTION_UP:
                     drawCanvas.drawPath(drawPath, drawPaint);
-                    action = "drawPath";
+                    action = DrawCommand.DRAW_PATH;
                     drawPath.reset();
                     break;
                 default:
                     //message += "NOT SHOWN EVENT:" + event.getAction();
                     return true;
             }
-            if (action != "") {
+            if (action != 0) {
                 command.setAction(action);
                 if (this.timeDiff == -1) {
                     this.timeDiff = System.currentTimeMillis();
@@ -136,5 +136,17 @@ public class DrawingView extends View {
 
     public void setQueue(BlockingQueue<byte[]> queue) {
         this.queue = queue;
+    }
+
+    public Path getDrawPath() {
+        return drawPath;
+    }
+
+    public Paint getDrawPaint() {
+        return drawPaint;
+    }
+
+    public Canvas getDrawCanvas() {
+        return drawCanvas;
     }
 }

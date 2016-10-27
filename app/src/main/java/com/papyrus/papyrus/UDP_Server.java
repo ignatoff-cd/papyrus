@@ -35,7 +35,7 @@ public class UDP_Server implements Runnable {
                  * you can simply instantiate the buffer with the maximum UDP packet size, which
                  * is 65506
                  */
-                byte[] buffer = new byte[65507];
+                byte[] buffer = new byte[1024];
                 DatagramPacket datagramPacket = new DatagramPacket(buffer, 0, buffer.length);
                 /**
                  * The receive method will wait for 3000 ms for data.
@@ -47,7 +47,8 @@ public class UDP_Server implements Runnable {
                  * queue.The 'put' method will block if the message queue is full,
                  * until there is space to store the new message.
                  */
-                this.messageQueue.put(datagramPacket.getData());
+                String str = new String(datagramPacket.getData(), 0, datagramPacket.getLength());
+                this.messageQueue.put(str.getBytes());
             }
         } catch (SocketException e) {
             e.printStackTrace();

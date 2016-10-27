@@ -1,16 +1,20 @@
 package com.papyrus.papyrus;
 
 public class DrawCommand {
-    private String action;
+    public static final int LINE_TO = 1;
+    public static final int MOVE_TO = 2;
+    public static final int DRAW_PATH = 3;
+
+    private int action;
     private float pointX;
     private float pointY;
     private long nanoDiff;
 
-    public String getAction() {
+    public int getAction() {
         return action;
     }
 
-    public void setAction(String action) {
+    public void setAction(int action) {
         this.action = action;
     }
 
