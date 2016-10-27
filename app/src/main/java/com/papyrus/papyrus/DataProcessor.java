@@ -31,6 +31,7 @@ public class DataProcessor implements Runnable {
                  */
                 counter++;
                 Log.i(TAG, "Data processor handled " + counter + " messages");
+                Log.i(TAG, "Data" + rawData.toString());
                 /**
                  * Simulate a 3 ms delay
                  */

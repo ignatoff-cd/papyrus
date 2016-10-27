@@ -28,6 +28,11 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     public BlockingQueue<byte[]> outcomeMessageQueue;
 
+    private int remoteServerPort = 11500;
+    private int clientPort = 50001;
+    private int serverPort = 50000;
+    private String serverIp = "192.168.39.137";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
@@ -40,9 +45,8 @@ public class MainActivity extends AppCompatActivity {
             drawView = (DrawingView) findViewById(R.id.drawing);
             drawView.setQueue(outcomeMessageQueue);
 
-            int port = 11500;
-            UDP_Server server = new UDP_Server(port, outcomeMessageQueue);
-            UDP_Client client = new UDP_Client(port, incomeMessageQueue);
+            UDP_Client client = new UDP_Client(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
+            UDP_Server server = new UDP_Server(clientPort, incomeMessageQueue);
 
             DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, drawView);
 
@@ -54,8 +58,6 @@ public class MainActivity extends AppCompatActivity {
                 outcomeMessageQueue.put("REGISTER".getBytes());
             } catch (InterruptedException e) {
             }
-
-
             LinearLayout paintLayout = (LinearLayout) findViewById(R.id.paint_colors2);
             currPaint = (ImageButton) paintLayout.getChildAt(4);
             currPaint.setImageResource(R.drawable.paint_pressed);

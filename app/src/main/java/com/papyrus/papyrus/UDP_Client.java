@@ -3,54 +3,54 @@ package com.papyrus.papyrus;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
+
 public class UDP_Client implements Runnable {
-    private final int port;
+    /**
+     * The port where the client is listening.
+     */
+    private final int clientPort;
+    private final int serverPort;
+    private final String serverIp;
     private final BlockingQueue<byte[]> messageQueue;
 
-    public UDP_Client(int port, BlockingQueue<byte[]> messageQueue) {
-        this.port = port;
+    public UDP_Client(int clientPort, int serverPort, String serverIp, BlockingQueue<byte[]> messageQueue) {
+        this.clientPort = clientPort;
+        this.serverPort = serverPort;
+        this.serverIp = serverIp;
         this.messageQueue = messageQueue;
     }
 
     @Override
     public void run() {
         /**
-         * Bind the client socket to the port on which you expect to
-         * read incoming messages
+         * Create a new server socket and bind it to a free port. I have chosendr
+         * one in the 49152 - 65535 range, which are allocated for internal applications
          */
-        try (DatagramSocket clientSocket = new DatagramSocket(port)) {
-            // Set a timeout of 3000 ms for the client.
-            clientSocket.setSoTimeout(3000);
+        try (DatagramSocket serverSocket = new DatagramSocket(serverPort)) {
+            // The server will generate 3 messages and send them to the client
             while (true) {
-                /**
-                 * Create a byte array buffer to store incoming data. If the message length
-                 * exceeds the length of your buffer, then the message will be truncated. To avoid this,
-                 * you can simply instantiate the buffer with the maximum UDP packet size, which
-                 * is 65506
-                 */
-                byte[] buffer = new byte[65507];
-                DatagramPacket datagramPacket = new DatagramPacket(buffer, 0, buffer.length);
-                /**
-                 * The receive method will wait for 3000 ms for data.
-                 * After that, the client will throw a timeout exception.
-                 */
-                clientSocket.receive(datagramPacket);
-                /**
-                 * Add the data contained in the datagram packet to the message
-                 * queue.The 'put' method will block if the message queue is full,
-                 * until there is space to store the new message.
-                 */
-                this.messageQueue.put(datagramPacket.getData());
+                byte[] item = this.messageQueue.take();
+                DatagramPacket datagramPacket = new DatagramPacket(
+                        item,
+                        item.length,
+                        InetAddress.getByName(serverIp),
+                        clientPort);
+                serverSocket.send(datagramPacket);
             }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         } catch (SocketException e) {
             e.printStackTrace();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
         } catch (IOException e) {
-            System.out.println("Timeout. Client is closing.");
-        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 }
+
