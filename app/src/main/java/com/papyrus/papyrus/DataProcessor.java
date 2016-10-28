@@ -30,29 +30,13 @@ public class DataProcessor implements Runnable {
 
     @Override
     public void run() {
-        int counter = 0;
         while (true) {
             try {
-                /**
-                 * Try and take a message from the queue. Will block if the
-                 * message queue is empty, until an element becomes available.
-                 */
                 byte[] rawData = this.messageQueue.take();
-                /**
-                 * Increase message counter after processing
-                 */
-                counter++;
-                Log.i(TAG, "Data processor handled " + counter + " messages");
                 String message = new String(rawData);
-                Log.i("TAG", message);
                 Gson gson = new Gson();
                 DrawCommand command = gson.fromJson(message, DrawCommand.class);
                 drawRemote(command);
-
-                /**
-                 * Simulate a 3 ms delay
-                 */
-                //Thread.sleep(3);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (Exception e) {

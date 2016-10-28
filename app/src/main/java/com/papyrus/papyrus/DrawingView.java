@@ -71,7 +71,6 @@ public class DrawingView extends View {
 //detect user touch
         try {
             DrawCommand command = new DrawCommand();
-            Log.i("DRAW", queue.toString());
             String message = "";
             int action = 0;
             float touchX = event.getX();
@@ -95,7 +94,6 @@ public class DrawingView extends View {
                     drawPath.reset();
                     break;
                 default:
-                    //message += "NOT SHOWN EVENT:" + event.getAction();
                     return true;
             }
             if (action != 0) {
@@ -149,4 +147,22 @@ public class DrawingView extends View {
     public Canvas getDrawCanvas() {
         return drawCanvas;
     }
+
+    public void rMoveTo(float pointX, float pointY) {
+        drawPath.moveTo(pointX, pointY);
+        invalidate();
+    }
+
+    public void rLineTo(float pointX, float pointY) {
+        drawPath.lineTo(pointX, pointY);
+        invalidate();
+    }
+
+    public void rDrawPath() {
+        drawCanvas.drawPath(drawPath, drawPaint);
+        drawPath.reset();
+        invalidate();
+    }
+
+
 }

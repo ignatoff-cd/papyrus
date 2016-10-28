@@ -1,10 +1,8 @@
 package com.papyrus.papyrus;
 
-import android.app.Dialog;
 import android.content.DialogInterface;
-import android.os.AsyncTask;
 import android.os.Environment;
-import android.os.Message;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -14,6 +12,8 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import com.google.gson.Gson;
 
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -26,34 +26,82 @@ public class MainActivity extends AppCompatActivity {
     private DrawingView drawView;
     private ImageButton currPaint, drawBtn, eraseBtn, newBtn, saveBtn;
     private static final String TAG = "MainActivity";
-    public BlockingQueue<byte[]> outcomeMessageQueue;
+    public BlockingQueue<byte[]> outcomeMessageQueue, incomeMessageQueue;
 
     private int remoteServerPort = 11500;
     private int clientPort = 50001;
     private int serverPort = 50000;
     private String serverIp = "192.168.39.137";
 
+    private Handler mHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
             super.onCreate(savedInstanceState);
-
-            this.outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
-            BlockingQueue<byte[]> incomeMessageQueue = new ArrayBlockingQueue<>(1200);
-
             setContentView(R.layout.activity_main);
             drawView = (DrawingView) findViewById(R.id.drawing);
+
+            mHandler = new Handler();
+
+            this.outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
+            incomeMessageQueue = new ArrayBlockingQueue<>(1200);
+
+
             drawView.setQueue(outcomeMessageQueue);
 
             UDP_Client client = new UDP_Client(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
             UDP_Server server = new UDP_Server(clientPort, incomeMessageQueue);
 
-            DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, drawView);
 
-            ExecutorService executorService = Executors.newFixedThreadPool(3);
+            //DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, drawView);
+
+            ExecutorService executorService = Executors.newFixedThreadPool(2);
             executorService.submit(client);
             executorService.submit(server);
-            executorService.submit(incomeDataProcessor);
+            //executorService.submit(incomeDataProcessor);
+
+            new Thread(new Runnable() {
+                private DrawCommand command;
+
+                @Override
+                public void run() {
+                    while (true) {
+                        try {
+                            byte[] rawData = incomeMessageQueue.take();
+                            String message = new String(rawData);
+                            Gson gson = new Gson();
+                            command = gson.fromJson(message, DrawCommand.class);
+                        } catch (InterruptedException e) {
+                            Log.e("REMOTE_DRAW", e.toString());
+                            e.printStackTrace();
+                        } catch (Exception e) {
+                            Log.e("REMOTE_DRAW", e.toString());
+                            e.printStackTrace();
+                        }
+
+                        mHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                switch (command.getAction()) {
+                                    case DrawCommand.MOVE_TO:
+                                        drawView.rMoveTo(command.getPointX(), command.getPointY());
+                                        break;
+                                    case DrawCommand.LINE_TO:
+                                        drawView.rLineTo(command.getPointX(), command.getPointY());
+                                        break;
+                                    case DrawCommand.DRAW_PATH:
+                                        drawView.rDrawPath();
+                                        break;
+                                    default:
+                                }
+
+                            }
+                        });
+                    }
+                }
+            }).start();
+
             try {
                 outcomeMessageQueue.put("REGISTER".getBytes());
             } catch (InterruptedException e) {
