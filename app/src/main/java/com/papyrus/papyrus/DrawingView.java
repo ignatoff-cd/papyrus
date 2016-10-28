@@ -24,11 +24,13 @@ public class DrawingView extends View {
     //drawing and canvas paint
     private Paint drawPaint, canvasPaint;
     //initial color
-    private int paintColor = 0xFF660000;
+    private int paintColor = 0xFF000000;
     //canvas
     private Canvas drawCanvas;
     //canvas bitmap
     private Bitmap canvasBitmap;
+    private String message;
+    private int action;
 
     private boolean erase = false;
     public BlockingQueue<byte[]> queue;
@@ -68,11 +70,8 @@ public class DrawingView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-//detect user touch
         try {
             DrawCommand command = new DrawCommand();
-            String message = "";
-            int action = 0;
             float touchX = event.getX();
             float touchY = event.getY();
             switch (event.getAction()) {

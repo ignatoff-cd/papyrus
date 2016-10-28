@@ -4,11 +4,24 @@ public class DrawCommand {
     public static final int LINE_TO = 1;
     public static final int MOVE_TO = 2;
     public static final int DRAW_PATH = 3;
+    public static final int BUTTON_NEW = 4;
+    public static final int BUTTON_DRAW = 5;
+    public static final int BUTTON_ERASE = 6;
+    public static final int BUTTON_COLOR = 7;
 
     private int action;
     private float pointX;
     private float pointY;
     private long nanoDiff;
+    private String color;
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
 
     public int getAction() {
         return action;

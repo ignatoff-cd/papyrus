@@ -31,9 +31,13 @@ public class MainActivity extends AppCompatActivity {
     private int remoteServerPort = 11500;
     private int clientPort = 50001;
     private int serverPort = 50000;
-    private String serverIp = "192.168.39.137";
+    private String serverIp = "192.168.1.5";
+
+    private LinearLayout paintLayout;
 
     private Handler mHandler;
+
+    private static int lastCommand = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_main);
             drawView = (DrawingView) findViewById(R.id.drawing);
+            Log.i(TAG, "WIDTH:" + drawView.getWidth());
 
             mHandler = new Handler();
 
@@ -61,8 +66,19 @@ public class MainActivity extends AppCompatActivity {
             executorService.submit(server);
             //executorService.submit(incomeDataProcessor);
 
+            drawView.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        outcomeMessageQueue.put(("SIZE|" + drawView.getWidth() + "|" + drawView.getHeight()).getBytes());
+                    } catch (InterruptedException e) {
+                    }
+                }
+            });
+
             new Thread(new Runnable() {
                 private DrawCommand command;
+
 
                 @Override
                 public void run() {
@@ -88,13 +104,31 @@ public class MainActivity extends AppCompatActivity {
                                         drawView.rMoveTo(command.getPointX(), command.getPointY());
                                         break;
                                     case DrawCommand.LINE_TO:
-                                        drawView.rLineTo(command.getPointX(), command.getPointY());
+                                        if (lastCommand != DrawCommand.LINE_TO) {
+                                            drawView.rMoveTo(command.getPointX(), command.getPointY());
+                                        } else {
+                                            drawView.rLineTo(command.getPointX(), command.getPointY());
+                                        }
                                         break;
                                     case DrawCommand.DRAW_PATH:
                                         drawView.rDrawPath();
                                         break;
+                                    case DrawCommand.BUTTON_COLOR:
+                                        drawView.setColor(command.getColor());
+                                        break;
+                                    case DrawCommand.BUTTON_DRAW:
+                                        drawView.setErase(false);
+                                        break;
+                                    case DrawCommand.BUTTON_ERASE:
+                                        drawView.setErase(true);
+                                        break;
+                                    case DrawCommand.BUTTON_NEW:
+                                        drawView.setErase(false);
+                                        drawView.startNew();
+                                        break;
                                     default:
                                 }
+                                lastCommand = command.getAction();
 
                             }
                         });
@@ -106,14 +140,15 @@ public class MainActivity extends AppCompatActivity {
                 outcomeMessageQueue.put("REGISTER".getBytes());
             } catch (InterruptedException e) {
             }
-            LinearLayout paintLayout = (LinearLayout) findViewById(R.id.paint_colors2);
-            currPaint = (ImageButton) paintLayout.getChildAt(4);
+            paintLayout = (LinearLayout) findViewById(R.id.paint_colors1);
+            currPaint = (ImageButton) paintLayout.getChildAt(7);
             currPaint.setImageResource(R.drawable.paint_pressed);
 
             drawBtn = (ImageButton) findViewById(R.id.brush_btn);
             drawBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    sendDrawButtonCommand(DrawCommand.BUTTON_DRAW, "");
                     drawView.setErase(false);
                 }
             });
@@ -123,6 +158,8 @@ public class MainActivity extends AppCompatActivity {
             eraseBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    sendDrawButtonCommand(DrawCommand.BUTTON_ERASE, "");
+                    drawView.setColor("#FFFFFFFF");
                     drawView.setErase(true);
                     Log.i(TAG, "Erase is true");
                 }
@@ -133,11 +170,13 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View view) {
                     drawView.setErase(false);
+                    sendDrawButtonCommand(DrawCommand.BUTTON_ERASE, "");
                     AlertDialog.Builder newDialog = new AlertDialog.Builder(MainActivity.this);
                     newDialog.setTitle("New drawing");
                     newDialog.setMessage("Start new drawing (you will lose the current drawing)?");
                     newDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int which) {
+                            sendDrawButtonCommand(DrawCommand.BUTTON_NEW, "");
                             drawView.startNew();
                             dialog.dismiss();
                         }
@@ -209,6 +248,21 @@ public class MainActivity extends AppCompatActivity {
             currPaint.setImageResource(R.drawable.paint);
             currPaint = (ImageButton) view;
             Log.i(TAG, currPaint.toString());
+            sendDrawButtonCommand(DrawCommand.BUTTON_COLOR, color);
+        }
+    }
+
+    private void sendDrawButtonCommand(int action, String color) {
+        DrawCommand command = new DrawCommand();
+        command.setAction(action);
+        if (action == DrawCommand.BUTTON_COLOR) {
+            command.setColor(color);
+        }
+        Gson gson = new Gson();
+        try {
+            outcomeMessageQueue.put(gson.toJson(command).getBytes());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 }
