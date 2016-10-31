@@ -10,9 +10,7 @@ import java.util.concurrent.BlockingQueue;
 
 
 public class UDP_Client implements Runnable {
-    /**
-     * The port where the client is listening.
-     */
+
     private final int clientPort;
     private final int serverPort;
     private final String serverIp;
@@ -27,12 +25,8 @@ public class UDP_Client implements Runnable {
 
     @Override
     public void run() {
-        /**
-         * Create a new server socket and bind it to a free port. I have chosendr
-         * one in the 49152 - 65535 range, which are allocated for internal applications
-         */
         try (DatagramSocket serverSocket = new DatagramSocket(serverPort)) {
-            // The server will generate 3 messages and send them to the client
+
             while (true) {
                 byte[] item = this.messageQueue.take();
                 DatagramPacket datagramPacket = new DatagramPacket(

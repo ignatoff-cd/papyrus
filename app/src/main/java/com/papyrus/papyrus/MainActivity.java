@@ -1,6 +1,9 @@
 package com.papyrus.papyrus;
 
+import android.content.Context;
 import android.content.DialogInterface;
+import android.net.DhcpInfo;
+import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
@@ -15,6 +18,10 @@ import android.widget.Toast;
 
 import com.google.gson.Gson;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -31,11 +38,12 @@ public class MainActivity extends AppCompatActivity {
     private int remoteServerPort = 11500;
     private int clientPort = 50001;
     private int serverPort = 50000;
-    private String serverIp = "192.168.1.5";
+    private String serverIp = "192.168.39.137";
 
     private LinearLayout paintLayout;
 
     private Handler mHandler;
+    private WifiManager wifi;
 
     private static int lastCommand = 0;
 
@@ -45,15 +53,15 @@ public class MainActivity extends AppCompatActivity {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_main);
             drawView = (DrawingView) findViewById(R.id.drawing);
-            Log.i(TAG, "WIDTH:" + drawView.getWidth());
+
+            wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
             mHandler = new Handler();
-
             this.outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
             incomeMessageQueue = new ArrayBlockingQueue<>(1200);
-
-
             drawView.setQueue(outcomeMessageQueue);
+
+            findServer();
 
             UDP_Client client = new UDP_Client(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
             UDP_Server server = new UDP_Server(clientPort, incomeMessageQueue);
@@ -78,7 +86,6 @@ public class MainActivity extends AppCompatActivity {
 
             new Thread(new Runnable() {
                 private DrawCommand command;
-
 
                 @Override
                 public void run() {
@@ -264,5 +271,28 @@ public class MainActivity extends AppCompatActivity {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    private InetAddress getBroadcastAddress() throws IOException {
+        DhcpInfo dhcp = wifi.getDhcpInfo();
+        int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
+        byte[] quads = new byte[4];
+        for (int k = 0; k < 4; k++)
+            quads[k] = (byte) ((broadcast >> k * 8) & 0xFF);
+        return InetAddress.getByAddress(quads);
+    }
+
+    private void findServer() throws IOException {
+        DatagramSocket socket = new DatagramSocket(55555);
+        socket.setBroadcast(true);
+        String data = "IS_SERVER";
+        DatagramPacket sPacket = new DatagramPacket(data.getBytes(), data.length(),
+                getBroadcastAddress(), remoteServerPort);
+        socket.send(sPacket);
+
+        byte[] buf = new byte[1024];
+        DatagramPacket rPacket = new DatagramPacket(buf, buf.length);
+        socket.receive(rPacket);
+        socket.close();
     }
 }
