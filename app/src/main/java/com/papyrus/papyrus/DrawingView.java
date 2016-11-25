@@ -20,7 +20,7 @@ import java.util.concurrent.BlockingQueue;
 
 public class DrawingView extends View {
     //drawing path
-    private Path drawPath;
+    private Path drawPath, remotePath;
     //drawing and canvas paint
     private Paint drawPaint, canvasPaint;
     //initial color
@@ -46,10 +46,12 @@ public class DrawingView extends View {
         drawPaint = new Paint();
         drawPaint.setColor(paintColor);
         drawPaint.setAntiAlias(true);
-        drawPaint.setStrokeWidth(15);
+        drawPaint.setStrokeWidth(10);
         drawPaint.setStyle(Paint.Style.STROKE);
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
+
+        remotePath = new Path();
         canvasPaint = new Paint(Paint.DITHER_FLAG);
     }
 
@@ -148,18 +150,18 @@ public class DrawingView extends View {
     }
 
     public void rMoveTo(float pointX, float pointY) {
-        drawPath.moveTo(pointX, pointY);
+        remotePath.moveTo(pointX, pointY);
         invalidate();
     }
 
     public void rLineTo(float pointX, float pointY) {
-        drawPath.lineTo(pointX, pointY);
+        remotePath.lineTo(pointX, pointY);
         invalidate();
     }
 
     public void rDrawPath() {
-        drawCanvas.drawPath(drawPath, drawPaint);
-        drawPath.reset();
+        drawCanvas.drawPath(remotePath, drawPaint);
+        remotePath.reset();
         invalidate();
     }
 

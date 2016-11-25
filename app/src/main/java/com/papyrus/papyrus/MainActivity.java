@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.net.DhcpInfo;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
@@ -38,7 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private int remoteServerPort = 11500;
     private int clientPort = 50001;
     private int serverPort = 50000;
-    private String serverIp = "192.168.39.137";
+    private String serverIp = "";
+    private FindServerTask fs;
 
     private LinearLayout paintLayout;
 
@@ -55,13 +57,16 @@ public class MainActivity extends AppCompatActivity {
             drawView = (DrawingView) findViewById(R.id.drawing);
 
             wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            fs = new FindServerTask();
+            fs.execute();
+            Log.i(TAG, "Fetched Server IP: " + serverIp);
 
             mHandler = new Handler();
             this.outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
             incomeMessageQueue = new ArrayBlockingQueue<>(1200);
             drawView.setQueue(outcomeMessageQueue);
 
-            findServer();
+            //findServer();
 
             UDP_Client client = new UDP_Client(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
             UDP_Server server = new UDP_Server(clientPort, incomeMessageQueue);
@@ -136,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
                                     default:
                                 }
                                 lastCommand = command.getAction();
-
+                                drawView.invalidate();
                             }
                         });
                     }
@@ -273,26 +278,52 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private InetAddress getBroadcastAddress() throws IOException {
-        DhcpInfo dhcp = wifi.getDhcpInfo();
-        int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
-        byte[] quads = new byte[4];
-        for (int k = 0; k < 4; k++)
-            quads[k] = (byte) ((broadcast >> k * 8) & 0xFF);
-        return InetAddress.getByAddress(quads);
-    }
 
-    private void findServer() throws IOException {
-        DatagramSocket socket = new DatagramSocket(55555);
-        socket.setBroadcast(true);
-        String data = "IS_SERVER";
-        DatagramPacket sPacket = new DatagramPacket(data.getBytes(), data.length(),
-                getBroadcastAddress(), remoteServerPort);
-        socket.send(sPacket);
+    private class FindServerTask extends AsyncTask<Void, Void, Void> {
+        private String TAG = "FindServer";
+        private boolean notChecked = true;
 
-        byte[] buf = new byte[1024];
-        DatagramPacket rPacket = new DatagramPacket(buf, buf.length);
-        socket.receive(rPacket);
-        socket.close();
+        @Override
+        protected Void doInBackground(Void... params) {
+            try {
+                findServer();
+
+            } catch (IOException ioe) {
+                Log.e(TAG, "Failed to fetch Server");
+            }
+            return null;
+        }
+
+        private InetAddress getBroadcastAddress() throws IOException {
+            DhcpInfo dhcp = wifi.getDhcpInfo();
+            int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
+            byte[] quads = new byte[4];
+            for (int k = 0; k < 4; k++)
+                quads[k] = (byte) ((broadcast >> k * 8) & 0xFF);
+            return InetAddress.getByAddress(quads);
+        }
+
+        private void findServer() throws IOException {
+            DatagramSocket socket = new DatagramSocket(55555);
+            socket.setBroadcast(true);
+            String data = "IS_SERVER";
+            DatagramPacket sPacket = new DatagramPacket(data.getBytes(), data.length(),
+                    getBroadcastAddress(), remoteServerPort);
+            socket.send(sPacket);
+
+            byte[] buf = new byte[1024];
+
+            while (notChecked) {
+                DatagramPacket rPacket = new DatagramPacket(buf, buf.length);
+                socket.receive(rPacket);
+                serverIp = new String(rPacket.getData(), 0, rPacket.getLength());
+                Log.i(TAG, "ServerIP: " + serverIp);
+                if (rPacket.getLength() > 0) {
+                    notChecked = false;
+                }
+            }
+
+            socket.close();
+        }
     }
 }
