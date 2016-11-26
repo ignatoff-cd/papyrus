@@ -24,6 +24,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -59,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
             wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
             fs = new FindServerTask();
             fs.execute();
+            serverIp = fs.get(5, TimeUnit.SECONDS);
             Log.i(TAG, "Fetched Server IP: " + serverIp);
 
             mHandler = new Handler();
@@ -279,19 +281,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private class FindServerTask extends AsyncTask<Void, Void, Void> {
+    private class FindServerTask extends AsyncTask<Void, Void, String> {
         private String TAG = "FindServer";
         private boolean notChecked = true;
+        private String serverIp = "";
 
         @Override
-        protected Void doInBackground(Void... params) {
+        protected String doInBackground(Void... params) {
             try {
                 findServer();
-
+                return serverIp;
             } catch (IOException ioe) {
                 Log.e(TAG, "Failed to fetch Server");
             }
-            return null;
+            return serverIp;
+        }
+
+        protected void onPostExecute(String result) {
+            super.onPostExecute(result);
         }
 
         private InetAddress getBroadcastAddress() throws IOException {
@@ -317,13 +324,12 @@ public class MainActivity extends AppCompatActivity {
                 DatagramPacket rPacket = new DatagramPacket(buf, buf.length);
                 socket.receive(rPacket);
                 serverIp = new String(rPacket.getData(), 0, rPacket.getLength());
-                Log.i(TAG, "ServerIP: " + serverIp);
                 if (rPacket.getLength() > 0) {
                     notChecked = false;
                 }
             }
-
             socket.close();
         }
+
     }
 }

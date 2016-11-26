@@ -84,6 +84,7 @@ public class DrawingView extends View {
                     break;
                 case MotionEvent.ACTION_HOVER_MOVE:
                 case MotionEvent.ACTION_MOVE:
+                    //drawPath.quadTo(lastX, lastY, (x + lastX)/2, (y + lastY)/2)
                     drawPath.lineTo(touchX, touchY);
                     action = DrawCommand.LINE_TO;
                     break;
@@ -151,18 +152,15 @@ public class DrawingView extends View {
 
     public void rMoveTo(float pointX, float pointY) {
         remotePath.moveTo(pointX, pointY);
-        invalidate();
     }
 
     public void rLineTo(float pointX, float pointY) {
         remotePath.lineTo(pointX, pointY);
-        invalidate();
     }
 
     public void rDrawPath() {
         drawCanvas.drawPath(remotePath, drawPaint);
         remotePath.reset();
-        invalidate();
     }
 
 
