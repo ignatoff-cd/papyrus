@@ -1,10 +1,6 @@
 package com.papyrus.papyrus;
 
-import android.content.Context;
 import android.content.DialogInterface;
-import android.net.DhcpInfo;
-import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
@@ -19,23 +15,22 @@ import android.widget.Toast;
 
 import com.google.gson.Gson;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 
 
 public class MainActivity extends AppCompatActivity {
     private DrawingView drawView;
     private ImageButton currPaint, drawBtn, eraseBtn, newBtn, saveBtn;
     private static final String TAG = "MainActivity";
-    public BlockingQueue<byte[]> outcomeMessageQueue, incomeMessageQueue;
+    public BlockingQueue<byte[]> outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
+    public BlockingQueue<byte[]> incomeMessageQueue = new ArrayBlockingQueue<>(1200);
 
     private int remoteServerPort = 11500;
     private int clientPort = 50001;
@@ -45,8 +40,8 @@ public class MainActivity extends AppCompatActivity {
 
     private LinearLayout paintLayout;
 
-    private Handler mHandler;
-    private WifiManager wifi;
+    private Handler mHandler = new Handler();
+
 
     private static int lastCommand = 0;
 
@@ -56,30 +51,17 @@ public class MainActivity extends AppCompatActivity {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.activity_main);
             drawView = (DrawingView) findViewById(R.id.drawing);
-
-            wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-            fs = new FindServerTask();
-            fs.execute();
-            serverIp = fs.get(5, TimeUnit.SECONDS);
-            Log.i(TAG, "Fetched Server IP: " + serverIp);
-
-            mHandler = new Handler();
-            this.outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
-            incomeMessageQueue = new ArrayBlockingQueue<>(1200);
             drawView.setQueue(outcomeMessageQueue);
+            findServer();
 
-            //findServer();
+            UdpClientThread client = new UdpClientThread(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
+            UdpServerThread server = new UdpServerThread(clientPort, incomeMessageQueue);
+            DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, this, drawView);
 
-            UDP_Client client = new UDP_Client(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
-            UDP_Server server = new UDP_Server(clientPort, incomeMessageQueue);
-
-
-            //DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, drawView);
-
-            ExecutorService executorService = Executors.newFixedThreadPool(2);
+            ExecutorService executorService = Executors.newFixedThreadPool(3);
             executorService.submit(client);
             executorService.submit(server);
-            //executorService.submit(incomeDataProcessor);
+            executorService.submit(incomeDataProcessor);
 
             drawView.post(new Runnable() {
                 @Override
@@ -90,65 +72,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
-
-            new Thread(new Runnable() {
-                private DrawCommand command;
-
-                @Override
-                public void run() {
-                    while (true) {
-                        try {
-                            byte[] rawData = incomeMessageQueue.take();
-                            String message = new String(rawData);
-                            Gson gson = new Gson();
-                            command = gson.fromJson(message, DrawCommand.class);
-                        } catch (InterruptedException e) {
-                            Log.e("REMOTE_DRAW", e.toString());
-                            e.printStackTrace();
-                        } catch (Exception e) {
-                            Log.e("REMOTE_DRAW", e.toString());
-                            e.printStackTrace();
-                        }
-
-                        mHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                switch (command.getAction()) {
-                                    case DrawCommand.MOVE_TO:
-                                        drawView.rMoveTo(command.getPointX(), command.getPointY());
-                                        break;
-                                    case DrawCommand.LINE_TO:
-                                        if (lastCommand != DrawCommand.LINE_TO) {
-                                            drawView.rMoveTo(command.getPointX(), command.getPointY());
-                                        } else {
-                                            drawView.rLineTo(command.getPointX(), command.getPointY());
-                                        }
-                                        break;
-                                    case DrawCommand.DRAW_PATH:
-                                        drawView.rDrawPath();
-                                        break;
-                                    case DrawCommand.BUTTON_COLOR:
-                                        drawView.setColor(command.getColor());
-                                        break;
-                                    case DrawCommand.BUTTON_DRAW:
-                                        drawView.setErase(false);
-                                        break;
-                                    case DrawCommand.BUTTON_ERASE:
-                                        drawView.setErase(true);
-                                        break;
-                                    case DrawCommand.BUTTON_NEW:
-                                        drawView.setErase(false);
-                                        drawView.startNew();
-                                        break;
-                                    default:
-                                }
-                                lastCommand = command.getAction();
-                                drawView.invalidate();
-                            }
-                        });
-                    }
-                }
-            }).start();
 
             try {
                 outcomeMessageQueue.put("REGISTER".getBytes());
@@ -280,56 +203,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public int getRemoteServerPort() {
+        return remoteServerPort;
+    }
 
-    private class FindServerTask extends AsyncTask<Void, Void, String> {
-        private String TAG = "FindServer";
-        private boolean notChecked = true;
-        private String serverIp = "";
+    public DrawingView getDrawView() {
+        return drawView;
+    }
 
-        @Override
-        protected String doInBackground(Void... params) {
-            try {
-                findServer();
-                return serverIp;
-            } catch (IOException ioe) {
-                Log.e(TAG, "Failed to fetch Server");
-            }
-            return serverIp;
-        }
-
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-        }
-
-        private InetAddress getBroadcastAddress() throws IOException {
-            DhcpInfo dhcp = wifi.getDhcpInfo();
-            int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
-            byte[] quads = new byte[4];
-            for (int k = 0; k < 4; k++)
-                quads[k] = (byte) ((broadcast >> k * 8) & 0xFF);
-            return InetAddress.getByAddress(quads);
-        }
-
-        private void findServer() throws IOException {
-            DatagramSocket socket = new DatagramSocket(55555);
-            socket.setBroadcast(true);
-            String data = "IS_SERVER";
-            DatagramPacket sPacket = new DatagramPacket(data.getBytes(), data.length(),
-                    getBroadcastAddress(), remoteServerPort);
-            socket.send(sPacket);
-
-            byte[] buf = new byte[1024];
-
-            while (notChecked) {
-                DatagramPacket rPacket = new DatagramPacket(buf, buf.length);
-                socket.receive(rPacket);
-                serverIp = new String(rPacket.getData(), 0, rPacket.getLength());
-                if (rPacket.getLength() > 0) {
-                    notChecked = false;
-                }
-            }
-            socket.close();
-        }
-
+    private void findServer() throws InterruptedException, ExecutionException, TimeoutException {
+        fs = new FindServerTask(this);
+        fs.execute();
+        serverIp = fs.get(2, TimeUnit.SECONDS);
+        Log.i(TAG, "Fetched Server IP: " + serverIp);
     }
 }

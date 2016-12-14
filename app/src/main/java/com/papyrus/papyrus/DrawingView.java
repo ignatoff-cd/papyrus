@@ -103,7 +103,7 @@ public class DrawingView extends View {
                 if (this.timeDiff == -1) {
                     this.timeDiff = System.currentTimeMillis();
                 }
-                command.setNanoDiff(System.currentTimeMillis() - timeDiff);
+                command.setNanoDiff(timeDiff);
                 command.setPointX(touchX);
                 command.setPointY(touchY);
                 Gson gson = new Gson();

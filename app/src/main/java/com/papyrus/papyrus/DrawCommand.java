@@ -48,7 +48,7 @@ public class DrawCommand {
     }
 
     public void setNanoDiff(long nanoDiff) {
-        this.nanoDiff = nanoDiff;
+        this.nanoDiff = System.currentTimeMillis() - nanoDiff;
     }
 
     public long getNanoDiff() {

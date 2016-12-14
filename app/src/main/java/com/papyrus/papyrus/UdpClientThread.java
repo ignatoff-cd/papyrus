@@ -9,14 +9,14 @@ import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
 
-public class UDP_Client implements Runnable {
+public class UdpClientThread implements Runnable {
 
     private final int clientPort;
     private final int serverPort;
     private final String serverIp;
     private final BlockingQueue<byte[]> messageQueue;
 
-    public UDP_Client(int clientPort, int serverPort, String serverIp, BlockingQueue<byte[]> messageQueue) {
+    public UdpClientThread(int clientPort, int serverPort, String serverIp, BlockingQueue<byte[]> messageQueue) {
         this.clientPort = clientPort;
         this.serverPort = serverPort;
         this.serverIp = serverIp;
@@ -37,10 +37,6 @@ public class UDP_Client implements Runnable {
                 serverSocket.send(datagramPacket);
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();

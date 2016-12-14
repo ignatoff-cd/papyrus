@@ -6,11 +6,11 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.concurrent.BlockingQueue;
 
-public class UDP_Server implements Runnable {
+public class UdpServerThread implements Runnable {
     private final int port;
     private final BlockingQueue<byte[]> messageQueue;
 
-    public UDP_Server(int port, BlockingQueue<byte[]> messageQueue) {
+    public UdpServerThread(int port, BlockingQueue<byte[]> messageQueue) {
         this.port = port;
         this.messageQueue = messageQueue;
     }
