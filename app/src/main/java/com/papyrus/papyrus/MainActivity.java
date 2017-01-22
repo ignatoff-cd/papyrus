@@ -26,7 +26,7 @@ import java.util.concurrent.TimeoutException;
 
 
 public class MainActivity extends AppCompatActivity {
-    private DrawingView drawView;
+    private PapSurfaceView drawView;
     private ImageButton currPaint, drawBtn, eraseBtn, newBtn, saveBtn;
     private static final String TAG = "MainActivity";
     public BlockingQueue<byte[]> outcomeMessageQueue = new ArrayBlockingQueue<>(1200);
@@ -49,19 +49,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         try {
             super.onCreate(savedInstanceState);
+
             setContentView(R.layout.activity_main);
-            drawView = (DrawingView) findViewById(R.id.drawing);
-            drawView.setQueue(outcomeMessageQueue);
             findServer();
+            drawView = (PapSurfaceView) findViewById(R.id.papSurface);
+            drawView.setQueue(outcomeMessageQueue);
+
 
             UdpClientThread client = new UdpClientThread(remoteServerPort, serverPort, serverIp, outcomeMessageQueue);
             UdpServerThread server = new UdpServerThread(clientPort, incomeMessageQueue);
-            DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, this, drawView);
+            //DataProcessor incomeDataProcessor = new DataProcessor(incomeMessageQueue, this, drawView);
 
-            ExecutorService executorService = Executors.newFixedThreadPool(3);
+            ExecutorService executorService = Executors.newFixedThreadPool(2);
             executorService.submit(client);
             executorService.submit(server);
-            executorService.submit(incomeDataProcessor);
+            //executorService.submit(incomeDataProcessor);
 
             drawView.post(new Runnable() {
                 @Override
@@ -207,9 +209,9 @@ public class MainActivity extends AppCompatActivity {
         return remoteServerPort;
     }
 
-    public DrawingView getDrawView() {
+    /*public DrawingView getDrawView() {
         return drawView;
-    }
+    }*/
 
     private void findServer() throws InterruptedException, ExecutionException, TimeoutException {
         fs = new FindServerTask(this);

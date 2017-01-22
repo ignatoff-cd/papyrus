@@ -19,10 +19,11 @@ import com.google.gson.Gson;
 import java.util.concurrent.BlockingQueue;
 
 public class DrawingView extends View {
+    static final double TOUCH_TOLERANCE = 0.5;
     //drawing path
     private Path drawPath, remotePath;
     //drawing and canvas paint
-    private Paint drawPaint, canvasPaint;
+    private Paint drawPaint, canvasPaint, rDrawPaint;
     //initial color
     private int paintColor = 0xFF000000;
     //canvas
@@ -30,7 +31,8 @@ public class DrawingView extends View {
     //canvas bitmap
     private Bitmap canvasBitmap;
     private String message;
-    private int action;
+    private int action, lastAction = 0;
+    private float lastX = 0, lastY = 0;
 
     private boolean erase = false;
     public BlockingQueue<byte[]> queue;
@@ -84,8 +86,8 @@ public class DrawingView extends View {
                     break;
                 case MotionEvent.ACTION_HOVER_MOVE:
                 case MotionEvent.ACTION_MOVE:
-                    //drawPath.quadTo(lastX, lastY, (x + lastX)/2, (y + lastY)/2)
-                    drawPath.lineTo(touchX, touchY);
+                    drawPath.quadTo(lastX, lastY, (touchX + lastX) / 2, (touchY + lastY) / 2);
+                    //drawPath.lineTo(touchX, touchY);
                     action = DrawCommand.LINE_TO;
                     break;
                 case MotionEvent.ACTION_POINTER_UP:
@@ -98,6 +100,7 @@ public class DrawingView extends View {
                 default:
                     return true;
             }
+            lastAction = action;
             if (action != 0) {
                 command.setAction(action);
                 if (this.timeDiff == -1) {
@@ -106,9 +109,13 @@ public class DrawingView extends View {
                 command.setNanoDiff(timeDiff);
                 command.setPointX(touchX);
                 command.setPointY(touchY);
+                command.setLastX(lastX);
+                command.setLastY(lastY);
                 Gson gson = new Gson();
                 message = gson.toJson(command);
                 queue.put(message.getBytes());
+                lastX = touchX;
+                lastY = touchY;
             }
             invalidate();
         } catch (InterruptedException e) {
@@ -150,12 +157,16 @@ public class DrawingView extends View {
         return drawCanvas;
     }
 
-    public void rMoveTo(float pointX, float pointY) {
-        remotePath.moveTo(pointX, pointY);
+    public void rMoveTo(float rPointX, float rPointY) {
+        remotePath.moveTo(rPointX, rPointY);
     }
 
-    public void rLineTo(float pointX, float pointY) {
-        remotePath.lineTo(pointX, pointY);
+    public void rLineTo(float rPointX, float rPointY) {
+        remotePath.lineTo(rPointX, rPointY);
+    }
+
+    public void rQuadTo(float rPointX, float rPointY, float rLastX, float rLastY) {
+        remotePath.quadTo(rLastX, rLastY, (rPointX + lastX) / 2, (rPointY + lastY) / 2);
     }
 
     public void rDrawPath() {

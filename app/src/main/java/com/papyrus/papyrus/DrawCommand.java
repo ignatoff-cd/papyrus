@@ -12,6 +12,8 @@ public class DrawCommand {
     private int action;
     private float pointX;
     private float pointY;
+    private float lastX;
+    private float lastY;
     private long nanoDiff;
     private String color;
 
@@ -25,6 +27,22 @@ public class DrawCommand {
 
     public int getAction() {
         return action;
+    }
+
+    public float getLastX() {
+        return lastX;
+    }
+
+    public void setLastX(float lastX) {
+        this.lastX = lastX;
+    }
+
+    public float getLastY() {
+        return lastY;
+    }
+
+    public void setLastY(float lastY) {
+        this.lastY = lastY;
     }
 
     public void setAction(int action) {

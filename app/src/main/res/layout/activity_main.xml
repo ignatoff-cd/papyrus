@@ -48,8 +48,8 @@
 
     </LinearLayout>
 
-    <com.papyrus.papyrus.DrawingView
-        android:id="@+id/drawing"
+    <com.papyrus.papyrus.PapSurfaceView
+        android:id="@+id/papSurface"
         android:layout_width="fill_parent"
         android:layout_height="0dp"
         android:layout_marginBottom="3dp"
